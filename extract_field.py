@@ -8,21 +8,26 @@ from pathlib import Path
 
 def BBOX_to_geojson(BBOX):
 
-    geojson = {
-        "type": "Feature",
-        "geometry": {
-            "type": "Polygon",
-            "coordinates": [[
-                [BBOX["west"], BBOX["south"]],
-                [BBOX["west"], BBOX["north"]],
-                [BBOX["east"], BBOX["north"]],
-                [BBOX["east"], BBOX["south"]],
-                [BBOX["west"], BBOX["south"]]
-            ]]
-        }   
+    feature_collection = {
+        "type": "FeatureCollection",
+        "features": [
+            {
+                "type": "Feature",
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[
+                        [BBOX["west"], BBOX["south"]],
+                        [BBOX["west"], BBOX["north"]],
+                        [BBOX["east"], BBOX["north"]],
+                        [BBOX["east"], BBOX["south"]],
+                        [BBOX["west"], BBOX["south"]]
+                    ]]
+                }   
+            }
+        ]
     }
 
-    return(geojson)
+    return(feature_collection)
 
 def add_fapar(con,BBOX):
     fapar = con.load_collection("TERRASCOPE_S2_FAPAR_V2",
@@ -61,10 +66,11 @@ def add_varmap(con,BBOX):
 def add_yield_potential(con,BBOX,year):
 
     yield_potential = con.datacube_from_process(
-        "yield_potential",
+        "yieldpotentialmap_shub",
         namespace="vito",
+        check=False,
         date=[f"{str(year)}-01-01",f"{str(year)}-12-31"],
-        polygon = BBOX_to_geojson(BBOX)
+        polygon = BBOX_to_geojson(BBOX),
         )
     
     return(yield_potential)
@@ -88,8 +94,8 @@ def extract_openeo(shp,var,outfile,CROPSAR=False,overwrite=False,YPM=False):
         
         if CROPSAR|YPM:
             years = [2020,2021,2022,2023,2024]
-            outfile_y = outfile.replace(".nc",f"_{year}.nc")
             for year in years:
+                outfile_y = outfile.replace(".nc",f"_{year}.nc")
                 if var == "fapar":
                     datacube = add_fapar_CROPSAR(con,BBOX,year)
                 elif var=="yield_potential":
@@ -139,7 +145,7 @@ if __name__ == "__main__":
 
     #Also extracting CROPSAR FAPAR for comparison                       
     outfile = os.path.join(Path(field_folder).parent,"openeo_extractions",field_name.replace(".shp","")+"_fapar_cropsar.nc")
-    #extract_openeo(field,"fapar",outfile,CROPSAR=True)
+    extract_openeo(field,"fapar",outfile,CROPSAR=True)
 
     #Extracting Variability Map from OpenEO
     outfile = os.path.join(Path(field_folder).parent,"openeo_extractions",field_name.replace(".shp","")+"_varmap.nc")
